@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Isa & Raf's Cozy Cinema 💖</title>
+  <style>
+    :root {
+      --pink: #ff9ac5;
+      --dark: #1a1a1a;
+      --sparkle-speed: 3s;
+    }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Comic Sans MS', cursive;
+      background: url('https://4kwallpapers.com/images/wallpapers/hello-kitty-black-5120x3200-17127.png') no-repeat center center fixed;
+      background-size: cover;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .main-content {
+      width: 90%;
+      max-width: 800px;
+      text-align: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    .header {
+      font-size: 2.5rem;
+      margin-bottom: 2rem;
+      text-shadow: 0 0 20px var(--pink);
+      animation: float 3s ease-in-out infinite;
+      opacity: 0;
+      animation: fadeIn 1s 0.5s forwards;
+    }
+
+    .controls {
+      background: rgba(0, 0, 0, 0.7);
+      padding: 2rem;
+      border-radius: 20px;
+      box-shadow: 0 0 30px rgba(255, 154, 197, 0.2);
+      margin: 1rem;
+      text-align: left;
+    }
+
+    .movie-input {
+      width: 80%;
+      padding: 12px 20px;
+      margin: 1rem 0;
+      border: 2px solid var(--pink);
+      border-radius: 30px;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 1.1rem;
+      transition: all 0.3s ease;
+    }
+
+    .movie-input:focus {
+      outline: none;
+      box-shadow: 0 0 20px var(--pink);
+    }
+
+    .heart-button {
+      background: var(--pink);
+      border: none;
+      padding: 12px 25px;
+      border-radius: 30px;
+      color: white;
+      font-size: 1.2rem;
+      cursor: pointer;
+      margin: 0.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .heart-button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px var(--pink);
+    }
+
+    #videoContainer {
+      width: 100%;
+      aspect-ratio: 16/9;
+      border-radius: 15px;
+      overflow: hidden;
+      margin: 2rem 0;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+
+    #moviePlayer {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .rain-drop {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.8);
+      width: 5px;
+      height: 10px;
+      border-radius: 50%;
+      animation: fall linear infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    @keyframes fadeIn {
+      to { opacity: 1; }
+    }
+
+    @keyframes fall {
+      0% { transform: translateY(-100vh); }
+      100% { transform: translateY(100vh); }
+    }
+
+    #timer {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 10px 20px;
+      border-radius: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .header {
+        font-size: 1.8rem;
+      }
+
+      .controls {
+        padding: 1rem;
+      }
+
+      .heart-button {
+        padding: 10px 20px;
+        font-size: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="main-content">
+    <h1 class="header">Raf x Isa Movie Night💖</h1>
+
+    <div class="controls">
+      <input type="text" class="movie-input" placeholder="🎬 Enter IMDb ID or Movie URL 💌" id="movieInput" />
+      <button class="heart-button" onclick="loadMovie()">💗 Load Movie</button>
+      <button class="heart-button" id="playOrStart" onclick="playOrStart()">🍿 Play Movie & Start Timer</button>
+      <button class="heart-button" id="playSong">🎵 Play Our Song</button>
+    </div>
+
+    <div id="videoContainer">
+      <iframe id="moviePlayer" allowfullscreen></iframe>
+    </div>
+  </div>
+
+  <div id="timer">Movie Time: 00:00:00 💓</div>
+
+  <script>
+    let audioContext, sourceNode, analyser, bufferLength, dataArray;
+    const playButton = document.getElementById('playSong');
+    const rainContainer = document.body;
+    let isSongPlaying = false;
+
+    // Create rain drops
+    function createRainDrops() {
+      const numberOfDrops = 50;  // Number of rain drops
+      for (let i = 0; i < numberOfDrops; i++) {
+        const rainDrop = document.createElement('div');
+        rainDrop.className = 'rain-drop';
+        rainDrop.style.left = `${Math.random() * window.innerWidth}px`;  // Random horizontal position
+        rainDrop.style.animationDuration = `${Math.random() * 2 + 2}s`; // Random falling speed
+        rainContainer.appendChild(rainDrop);
+      }
+    }
+
+    // Start and stop rain
+    function startRain() {
+      createRainDrops();
+      if (isSongPlaying) {
+        requestAnimationFrame(bounceRain);
+      }
+    }
+
+    function stopRain() {
+      const rainDrops = document.querySelectorAll('.rain-drop');
+      rainDrops.forEach(rainDrop => rainDrop.remove());
+    }
+
+    function bounceRain() {
+      if (isSongPlaying) {
+        analyser.getByteFrequencyData(dataArray);
+        const averageAmplitude = dataArray.reduce((acc, val) => acc + val, 0) / dataArray.length;
+        const bounceHeight = (averageAmplitude / 255) * 10;
+        const rainDrops = document.querySelectorAll('.rain-drop');
+        rainDrops.forEach((drop, index) => {
+          const bounce = Math.sin(index + Date.now() / 100) * bounceHeight;
+          drop.style.transform = `translateY(${bounce}px)`;
+        });
+        requestAnimationFrame(bounceRain);
+      }
+    }
+
+    // Audio system
+    playButton.addEventListener('click', async () => {
+      if (!audioContext) audioContext = new AudioContext();
+      if (sourceNode) {
+        sourceNode.stop();
+        sourceNode.disconnect();
+        analyser.disconnect();
+        sourceNode = null;
+        isSongPlaying = false;
+        playButton.textContent = '🎵 Play Our Song :3';
+        stopRain(); // Stop rain when song stops
+        return;
+      }
+
+      try {
+        const response = await fetch('test.mp3');
+        const buffer = await response.arrayBuffer();
+        const bufferData = await audioContext.decodeAudioData(buffer);
+        sourceNode = audioContext.createBufferSource();
+        sourceNode.buffer = bufferData;
+        sourceNode.loop = true;
+        sourceNode.connect(audioContext.destination);
+
+        analyser = audioContext.createAnalyser();
+        sourceNode.connect(analyser);
+        analyser.fftSize = 256;
+        bufferLength = analyser.frequencyBinCount;
+        dataArray = new Uint8Array(bufferLength);
+
+        sourceNode.start();
+        isSongPlaying = true;
+        playButton.textContent = '🔇 Stop Song';
+        startRain(); // Start rain when song starts
+      } catch (err) {
+        console.error('Audio error:', err);
+      }
+    });
+
+    // Movie Loading
+    function loadMovie() {
+      const input = document.getElementById('movieInput').value.trim();
+      let embedUrl = '';
+
+      if (/^tt\d+$/.test(input)) {
+        embedUrl = `https://vidsrc.xyz/embed/movie/${input}`;
+      } else if (isValidURL(input)) {
+        embedUrl = input;
+      } else {
+        alert('Please enter a valid IMDb ID (ttXXXXXXX) or movie URL 💘');
+        return;
+      }
+
+      document.getElementById('moviePlayer').src = embedUrl;
+      document.getElementById('videoContainer').style.opacity = '1';
+    }
+
+    // Countdown system
+    function startTimer() {
+      const timerElement = document.getElementById('timer');
+      let seconds = 0;
+      const interval = setInterval(() => {
+        seconds++;
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const displayTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+        timerElement.textContent = `Movie Time: ${displayTime} 💓`;
+
+        if (seconds >= 3600) {
+          clearInterval(interval);
+        }
+      }, 1000);
+    }
+
+    // Play movie and start timer
+    function playOrStart() {
+      if (document.getElementById('moviePlayer').src) {
+        startTimer(); // Start the timer if the movie is loaded
+      }
+    }
+
+    // URL Validator
+    function isValidURL(str) {
+      const pattern = /^https?:\/\/[a-zA-Z0-9-]+\.[a-zA-Z]{2,3}(\/\S*)?$/;
+      return pattern.test(str);
+    }
+  </script>
+</body>
+</html>
